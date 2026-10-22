@@ -8,6 +8,11 @@ import Settings from "@/components/Settings";
 import Metodologia from "@/components/Metodologia";
 import { IconMenu, IconSettings, IconBook, IconTrash } from "@/components/Icons";
 
+const LABEL: Record<string, string> = {
+  hipotese: "Hipótese", canal: "Canal", area: "Área", responsavel: "Responsável", impacto: "Impacto",
+  confianca: "Confiança", facilidade: "Facilidade", metrica: "Métrica", meta: "Meta",
+  resultado_obtido: "Resultado obtido", aprendizado: "Aprendizado", data_inicio: "Início", data_fim: "Fim",
+};
 const iceClass = (n: number) => (n >= 400 ? "hi" : n >= 200 ? "md" : "lo");
 
 function Auto({ value, onSave, placeholder }: { value: string; onSave: (v: string) => void; placeholder?: string }) {
@@ -38,8 +43,10 @@ export default function Page() {
   const [filtroResp, setFiltroResp] = useState("");
   const [config, setConfig] = useState(false);
   const [menuOculto, setMenuOculto] = useState(false);
+  const [mobOpen, setMobOpen] = useState(false);
+  const isMobile = () => typeof window !== "undefined" && window.innerWidth < 800;
   useEffect(() => { try { setMenuOculto(localStorage.getItem("ice_menu_oculto") === "1"); } catch {} }, []);
-  const toggleMenu = () => setMenuOculto((v) => { try { localStorage.setItem("ice_menu_oculto", v ? "0" : "1"); } catch {} return !v; });
+  const toggleMenu = () => { if (isMobile()) { setMobOpen((v) => !v); return; } setMenuOculto((v) => { try { localStorage.setItem("ice_menu_oculto", v ? "0" : "1"); } catch {} return !v; }); };
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState("");
 
@@ -95,35 +102,36 @@ export default function Page() {
   const nomes = pessoas.map((p) => p.nome);
 
   const num = (h: Hipotese, k: "impacto" | "confianca" | "facilidade") => (
-    <td><input className="num" type="number" min={1} max={10} value={h[k]}
+    <td className="n" data-l={LABEL[k]}><input className="num" type="number" min={1} max={10} value={h[k]}
       onChange={(e) => setHip((cur) => cur.map((x) => x.id === h.id ? { ...x, [k]: Number(e.target.value), ice: 0 } : x))}
       onBlur={(e) => { const v = Math.min(10, Math.max(1, Number(e.target.value) || 1)); patch(h.id, { [k]: v } as any); }} /></td>
   );
   const sel1 = (h: Hipotese, k: keyof Hipotese, list: string[]) => (
-    <td><select value={(h[k] as string) ?? ""} onChange={(e) => patch(h.id, { [k]: e.target.value || null } as any)}><Opts list={list} current={h[k] as string} /></select></td>
+    <td data-l={LABEL[k as string]}><select value={(h[k] as string) ?? ""} onChange={(e) => patch(h.id, { [k]: e.target.value || null } as any)}><Opts list={list} current={h[k] as string} /></select></td>
   );
   const txt = (h: Hipotese, k: keyof Hipotese, w: number, ph?: string) => (
-    <td style={{ minWidth: w }}><Auto value={(h[k] as string) ?? ""} placeholder={ph} onSave={(v) => patch(h.id, { [k]: v || null } as any)} /></td>
+    <td className={k === "hipotese" || k === "aprendizado" ? "f" : ""} data-l={LABEL[k as string]} style={{ minWidth: w }}><Auto value={(h[k] as string) ?? ""} placeholder={ph} onSave={(v) => patch(h.id, { [k]: v || null } as any)} /></td>
   );
   const date = (h: Hipotese, k: "data_inicio" | "data_fim") => (
-    <td style={{ minWidth: 130 }}><input type="date" value={h[k] ?? ""} onChange={(e) => patch(h.id, { [k]: e.target.value || null } as any)} /></td>
+    <td data-l={LABEL[k]} style={{ minWidth: 130 }}><input type="date" value={h[k] ?? ""} onChange={(e) => patch(h.id, { [k]: e.target.value || null } as any)} /></td>
   );
 
   return (
     <>
       <header className="top">
-        <button className="btn ico" onClick={toggleMenu} title="Mostrar/ocultar menu"><IconMenu />{menuOculto ? "Mostrar menu" : "Ocultar menu"}</button>
+        <button className="btn ico" onClick={toggleMenu} title="Mostrar/ocultar menu"><IconMenu /><span className="lbl">{menuOculto ? "Mostrar menu" : "Ocultar menu"}</span></button>
         <div className="brand">V4 <b>Falcon</b> · ICE Score<small>HIPÓTESES · PRIORIZAÇÃO · APRENDIZADO</small></div>
         <div className="spacer" />
-        <button className="btn ico" onClick={() => setConfig(true)}><IconSettings />Configurações</button>
+        <button className="btn ico" onClick={() => setConfig(true)}><IconSettings /><span className="lbl">Configurações</span></button>
       </header>
 
-      <div className={"shell" + (menuOculto ? " collapsed" : "")}>
+      <div className={"shell" + (menuOculto ? " collapsed" : "") + (mobOpen ? " mobopen" : "")}>
+      <div className="backdrop" onClick={() => setMobOpen(false)} />
       <aside className="side">
-        <button className={"nav" + (sel === "metodo" ? " active" : "")} onClick={() => setSel("metodo")}><span className="ico"><IconBook />Metodologia</span></button>
+        <button className={"nav" + (sel === "metodo" ? " active" : "")} onClick={() => { setSel("metodo"); setMobOpen(false); }}><span className="ico"><IconBook />Metodologia</span></button>
         <h4>Clientes ({clientes.length})</h4>
         {clientes.map((c) => (
-          <button key={c.id} className={"nav" + (sel === c.id ? " active" : "")} onClick={() => setSel(c.id)}>
+          <button key={c.id} className={"nav" + (sel === c.id ? " active" : "")} onClick={() => { setSel(c.id); setMobOpen(false); }}>
             <span>{c.nome}</span><span className="n">{hip.filter((h) => h.cliente_id === c.id).length || ""}</span>
           </button>
         ))}
@@ -136,10 +144,10 @@ export default function Page() {
         <span className="meta">Account: {cliente?.account ?? "—"} · Tráfego: {cliente?.trafego ?? "—"} · Social: {cliente?.social ?? "—"} · Designer: {cliente?.designer ?? "—"}</span>
         <div className="spacer" />
         <select className="btn" value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)}>
-          <option value="">Todos os status</option>{STATUSES.map((s) => <option key={s}>{s}</option>)}
+          <option value="">Status: todos</option>{STATUSES.map((s) => <option key={s}>{s}</option>)}
         </select>
         <select className="btn" value={filtroResp} onChange={(e) => setFiltroResp(e.target.value)}>
-          <option value="">Todos os responsáveis</option>{nomes.map((n) => <option key={n}>{n}</option>)}
+          <option value="">Responsável: todos</option>{nomes.map((n) => <option key={n}>{n}</option>)}
         </select>
         <div className="seg">
           <button className={view === "tabela" ? "on" : ""} onClick={() => setView("tabela")}>Tabela</button>
@@ -172,13 +180,13 @@ export default function Page() {
                   {txt(h, "hipotese", 300, "Se fizermos X, então Y, porque Z…")}
                   {sel1(h, "canal", CANAIS)}{sel1(h, "area", AREAS)}{sel1(h, "responsavel", nomes)}
                   {num(h, "impacto")}{num(h, "confianca")}{num(h, "facilidade")}
-                  <td className={"ice " + iceClass(h.ice)}>{h.ice}</td>
-                  <td><select className={"st-" + h.status} value={h.status} onChange={(e) => patch(h.id, { status: e.target.value as Status })}>{STATUSES.map((s) => <option key={s}>{s}</option>)}</select></td>
+                  <td className={"ice " + iceClass(h.ice)} data-l="ICE">{h.ice}</td>
+                  <td data-l="Status"><select className={"st-" + h.status} value={h.status} onChange={(e) => patch(h.id, { status: e.target.value as Status })}>{STATUSES.map((s) => <option key={s}>{s}</option>)}</select></td>
                   {date(h, "data_inicio")}{date(h, "data_fim")}
                   {txt(h, "metrica", 130, "Ex.: CPL")}{txt(h, "meta", 110, "Ex.: R$ 32")}{txt(h, "resultado_obtido", 130, "Ex.: R$ 29")}
-                  <td><select className={"res-" + (h.resultado ?? "")} value={h.resultado ?? ""} onChange={(e) => patch(h.id, { resultado: e.target.value || null })}><option value="">—</option>{RESULTADOS.map((r) => <option key={r}>{r}</option>)}</select></td>
+                  <td data-l="Resultado"><select className={"res-" + (h.resultado ?? "")} value={h.resultado ?? ""} onChange={(e) => patch(h.id, { resultado: e.target.value || null })}><option value="">—</option>{RESULTADOS.map((r) => <option key={r}>{r}</option>)}</select></td>
                   {txt(h, "aprendizado", 240, "O que aprendemos?")}
-                  <td style={{ padding: 6 }}><button className="btn sm danger" onClick={() => del(h)} title="Excluir" aria-label="Excluir hipótese"><IconTrash size={14} /></button></td>
+                  <td className="del" style={{ padding: 6 }}><button className="btn sm danger" onClick={() => del(h)} title="Excluir" aria-label="Excluir hipótese"><IconTrash size={14} /></button></td>
                 </tr>
               ))}
             </tbody>
