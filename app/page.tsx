@@ -5,6 +5,7 @@ import {
   type Cliente, type Hipotese, type Pessoa, type Status,
 } from "@/lib/supabase";
 import Settings from "@/components/Settings";
+import Metodologia from "@/components/Metodologia";
 
 const iceClass = (n: number) => (n >= 400 ? "hi" : n >= 200 ? "md" : "lo");
 
@@ -30,11 +31,14 @@ export default function Page() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [pessoas, setPessoas] = useState<Pessoa[]>([]);
   const [hip, setHip] = useState<Hipotese[]>([]);
-  const [sel, setSel] = useState<string>("all");
+  const [sel, setSel] = useState<string>("metodo");
   const [view, setView] = useState<"tabela" | "kanban">("tabela");
   const [filtroStatus, setFiltroStatus] = useState("");
   const [filtroResp, setFiltroResp] = useState("");
   const [config, setConfig] = useState(false);
+  const [menuOculto, setMenuOculto] = useState(false);
+  useEffect(() => { try { setMenuOculto(localStorage.getItem("ice_menu_oculto") === "1"); } catch {} }, []);
+  const toggleMenu = () => setMenuOculto((v) => { try { localStorage.setItem("ice_menu_oculto", v ? "0" : "1"); } catch {} return !v; });
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState("");
 
@@ -53,10 +57,9 @@ export default function Page() {
     setLoading(false);
   }, []);
   useEffect(() => { reload(); }, [reload]);
-  useEffect(() => { if (sel !== "all" && !clientes.some((c) => c.id === sel) && !loading) setSel("all"); }, [clientes, sel, loading]);
+  useEffect(() => { if (sel !== "metodo" && !clientes.some((c) => c.id === sel) && !loading) setSel("metodo"); }, [clientes, sel, loading]);
 
-  const clienteNome = (id: string) => clientes.find((c) => c.id === id)?.nome ?? "";
-  const cliente = clientes.find((c) => c.id === sel);
+    const cliente = clientes.find((c) => c.id === sel);
 
   async function patch(id: string, p: Partial<Hipotese>) {
     setHip((cur) => cur.map((h) => (h.id === id ? { ...h, ...p, ice: ((p.impacto ?? h.impacto) * (p.confianca ?? h.confianca) * (p.facilidade ?? h.facilidade)) } : h)));
@@ -78,14 +81,14 @@ export default function Page() {
 
   const visible = useMemo(() => {
     return hip
-      .filter((h) => (sel === "all" || h.cliente_id === sel) && (!filtroStatus || h.status === filtroStatus) && (!filtroResp || h.responsavel === filtroResp))
+      .filter((h) => (h.cliente_id === sel) && (!filtroStatus || h.status === filtroStatus) && (!filtroResp || h.responsavel === filtroResp))
       .sort((a, b) => {
         const done = (x: Hipotese) => (x.status === "Concluído" ? 1 : 0);
         return done(a) - done(b) || b.ice - a.ice;
       });
   }, [hip, sel, filtroStatus, filtroResp]);
 
-  const base = hip.filter((h) => sel === "all" || h.cliente_id === sel);
+  const base = hip.filter((h) => h.cliente_id === sel);
   const count = (s: Status) => base.filter((h) => h.status === s).length;
   const validadas = base.filter((h) => h.resultado === "Validada").length;
   const nomes = pessoas.map((p) => p.nome);
@@ -108,23 +111,28 @@ export default function Page() {
   return (
     <>
       <header className="top">
+        <button className="btn" onClick={toggleMenu} title="Mostrar/ocultar menu">{menuOculto ? "☰ Mostrar menu" : "☰ Ocultar menu"}</button>
         <div className="brand">V4 <b>Falcon</b> · ICE Score<small>HIPÓTESES · PRIORIZAÇÃO · APRENDIZADO</small></div>
         <div className="spacer" />
         <button className="btn" onClick={() => setConfig(true)}>⚙ Configurações</button>
       </header>
 
-      <div className="tabs">
-        <button className={"tab" + (sel === "all" ? " active" : "")} onClick={() => setSel("all")}>Todos<span className="n">{hip.length}</span></button>
+      <div className={"shell" + (menuOculto ? " collapsed" : "")}>
+      <aside className="side">
+        <button className={"nav" + (sel === "metodo" ? " active" : "")} onClick={() => setSel("metodo")}>📘 Metodologia</button>
+        <h4>Clientes ({clientes.length})</h4>
         {clientes.map((c) => (
-          <button key={c.id} className={"tab" + (sel === c.id ? " active" : "")} onClick={() => setSel(c.id)}>
-            {c.nome}<span className="n">{hip.filter((h) => h.cliente_id === c.id).length}</span>
+          <button key={c.id} className={"nav" + (sel === c.id ? " active" : "")} onClick={() => setSel(c.id)}>
+            <span>{c.nome}</span><span className="n">{hip.filter((h) => h.cliente_id === c.id).length || ""}</span>
           </button>
         ))}
-      </div>
+      </aside>
+      <main className="main">
+      {sel === "metodo" ? <Metodologia /> : <>
 
       <div className="bar">
-        <h2>{cliente ? cliente.nome : "Todos os clientes"}</h2>
-        {cliente && <span className="meta">Account: {cliente.account ?? "—"} · Tráfego: {cliente.trafego ?? "—"} · Social: {cliente.social ?? "—"} · Designer: {cliente.designer ?? "—"}</span>}
+        <h2>{cliente?.nome}</h2>
+        <span className="meta">Account: {cliente?.account ?? "—"} · Tráfego: {cliente?.trafego ?? "—"} · Social: {cliente?.social ?? "—"} · Designer: {cliente?.designer ?? "—"}</span>
         <div className="spacer" />
         <select className="btn" value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)}>
           <option value="">Todos os status</option>{STATUSES.map((s) => <option key={s}>{s}</option>)}
@@ -136,7 +144,7 @@ export default function Page() {
           <button className={view === "tabela" ? "on" : ""} onClick={() => setView("tabela")}>Tabela</button>
           <button className={view === "kanban" ? "on" : ""} onClick={() => setView("kanban")}>Kanban</button>
         </div>
-        {cliente && <button className="btn red" onClick={add}>+ Nova hipótese</button>}
+        <button className="btn red" onClick={add}>+ Nova hipótese</button>
       </div>
 
       <div className="kpis">
@@ -146,12 +154,12 @@ export default function Page() {
       <p className="guide">ICE = Impacto × Confiança × Facilidade (notas 1–10, máx. 1000). Ordenado do maior para o menor; concluídas vão para o fim. Vermelho ≥ 400 · amarelo ≥ 200.</p>
 
       {loading ? <div className="empty">Carregando…</div> : visible.length === 0 ? (
-        <div className="empty">{cliente ? "Nenhuma hipótese ainda. Clique em “+ Nova hipótese”." : "Nenhuma hipótese encontrada. Escolha um cliente na aba para começar."}</div>
+        <div className="empty">Nenhuma hipótese ainda. Clique em “+ Nova hipótese”.</div>
       ) : view === "tabela" ? (
         <div className="wrap">
           <table>
             <thead><tr>
-              <th>#</th>{sel === "all" && <th>Cliente</th>}<th>Hipótese</th><th>Canal</th><th>Área</th><th>Responsável</th>
+              <th>#</th><th>Hipótese</th><th>Canal</th><th>Área</th><th>Responsável</th>
               <th title="Impacto">I</th><th title="Confiança">C</th><th title="Facilidade">E</th><th>ICE</th>
               <th>Status</th><th>Início</th><th>Fim</th><th>Métrica</th><th>Meta</th><th>Resultado obtido</th><th>Resultado</th><th>Aprendizado</th><th />
             </tr></thead>
@@ -159,7 +167,7 @@ export default function Page() {
               {visible.map((h, i) => (
                 <tr key={h.id}>
                   <td className="rank">{i + 1}</td>
-                  {sel === "all" && <td style={{ padding: "9px 8px", whiteSpace: "nowrap", fontWeight: 700 }}>{clienteNome(h.cliente_id)}</td>}
+                  
                   {txt(h, "hipotese", 300, "Se fizermos X, então Y, porque Z…")}
                   {sel1(h, "canal", CANAIS)}{sel1(h, "area", AREAS)}{sel1(h, "responsavel", nomes)}
                   {num(h, "impacto")}{num(h, "confianca")}{num(h, "facilidade")}
@@ -186,7 +194,7 @@ export default function Page() {
                 <div className="card" key={h.id} draggable onDragStart={(e) => e.dataTransfer.setData("id", h.id)}>
                   <p>{h.hipotese || <i style={{ color: "var(--muted)" }}>Sem descrição</i>}</p>
                   <div className="row">
-                    <span>{sel === "all" ? clienteNome(h.cliente_id) + " · " : ""}{h.responsavel ?? "sem responsável"}{h.canal ? " · " + h.canal : ""}</span>
+                    <span>{h.responsavel ?? "sem responsável"}{h.canal ? " · " + h.canal : ""}</span>
                     <span className="score">{h.ice}</span>
                   </div>
                 </div>
@@ -195,6 +203,10 @@ export default function Page() {
           ))}
         </div>
       )}
+
+      </>}
+      </main>
+      </div>
 
       {config && <Settings clientes={clientes} pessoas={pessoas} onClose={() => setConfig(false)} reload={reload} />}
       {toast && <div className="toast">{toast}</div>}
