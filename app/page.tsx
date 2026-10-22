@@ -6,6 +6,7 @@ import {
 } from "@/lib/supabase";
 import Settings from "@/components/Settings";
 import Metodologia from "@/components/Metodologia";
+import { IconMenu, IconSettings, IconBook, IconTrash } from "@/components/Icons";
 
 const iceClass = (n: number) => (n >= 400 ? "hi" : n >= 200 ? "md" : "lo");
 
@@ -111,15 +112,15 @@ export default function Page() {
   return (
     <>
       <header className="top">
-        <button className="btn" onClick={toggleMenu} title="Mostrar/ocultar menu">{menuOculto ? "☰ Mostrar menu" : "☰ Ocultar menu"}</button>
+        <button className="btn ico" onClick={toggleMenu} title="Mostrar/ocultar menu"><IconMenu />{menuOculto ? "Mostrar menu" : "Ocultar menu"}</button>
         <div className="brand">V4 <b>Falcon</b> · ICE Score<small>HIPÓTESES · PRIORIZAÇÃO · APRENDIZADO</small></div>
         <div className="spacer" />
-        <button className="btn" onClick={() => setConfig(true)}>⚙ Configurações</button>
+        <button className="btn ico" onClick={() => setConfig(true)}><IconSettings />Configurações</button>
       </header>
 
       <div className={"shell" + (menuOculto ? " collapsed" : "")}>
       <aside className="side">
-        <button className={"nav" + (sel === "metodo" ? " active" : "")} onClick={() => setSel("metodo")}>📘 Metodologia</button>
+        <button className={"nav" + (sel === "metodo" ? " active" : "")} onClick={() => setSel("metodo")}><span className="ico"><IconBook />Metodologia</span></button>
         <h4>Clientes ({clientes.length})</h4>
         {clientes.map((c) => (
           <button key={c.id} className={"nav" + (sel === c.id ? " active" : "")} onClick={() => setSel(c.id)}>
@@ -177,7 +178,7 @@ export default function Page() {
                   {txt(h, "metrica", 130, "Ex.: CPL")}{txt(h, "meta", 110, "Ex.: R$ 32")}{txt(h, "resultado_obtido", 130, "Ex.: R$ 29")}
                   <td><select className={"res-" + (h.resultado ?? "")} value={h.resultado ?? ""} onChange={(e) => patch(h.id, { resultado: e.target.value || null })}><option value="">—</option>{RESULTADOS.map((r) => <option key={r}>{r}</option>)}</select></td>
                   {txt(h, "aprendizado", 240, "O que aprendemos?")}
-                  <td style={{ padding: 6 }}><button className="btn sm danger" onClick={() => del(h)} title="Excluir">✕</button></td>
+                  <td style={{ padding: 6 }}><button className="btn sm danger" onClick={() => del(h)} title="Excluir" aria-label="Excluir hipótese"><IconTrash size={14} /></button></td>
                 </tr>
               ))}
             </tbody>
